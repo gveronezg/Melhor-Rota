@@ -15,13 +15,34 @@ driver.implicitly_wait(3)
 # Acessar o site
 driver.get("https://www.google.com/maps")
 
-def adiciona_destino(endereco):
-    # Aqui estamos selecionando o campo de busca
-    campo_de_busca = driver.find_element(By.NAME, "q")
-    # Aqui estamos digitando o endereço no campo de busca
-    campo_de_busca.send_keys(endereco)
-    # Aqui estamos pressionando Enter para buscar
-    campo_de_busca.send_keys(Keys.RETURN)
+def rotas_abertas():
+    xpath = '//button[@aria-label="Fechar rotas"]'
+    botao_fechar_rotas = driver.find_elements(By.XPATH, xpath)
+    return len(botao_fechar_rotas) > 0
+
+def adiciona_destino(endereco, numero_caixas=1):
+    if not rotas_abertas():
+        # Aqui estamos selecionando o campo de busca
+        campo_de_busca = driver.find_element(By.NAME, "q")
+        # Aqui estamos digitando o endereço no campo de busca
+        campo_de_busca.send_keys(endereco)
+        # Aqui estamos pressionando Enter para buscar
+        campo_de_busca.send_keys(Keys.RETURN)
+    else:
+        xpath = '//div[contains(@id, "directions-searchbox")]//input'
+        caixas = driver.find_elements(By.XPATH, xpath)
+        caixas = [c for c in caixas if c.is_displayed()]
+        if len(caixas) >= numero_caixas:
+            caixa_endereco = caixas[numero_caixas - 1]
+            caixa_endereco.send_keys(Keys.CONTROL + "a")
+            caixa_endereco.send_keys(Keys.DELETE)
+            caixa_endereco.send_keys(endereco)
+            caixa_endereco.send_keys(Keys.RETURN)
+        else:
+            print(f"Não foi possível adicionar o endereço {len(caixas)} | {numero_caixas}")
+
+    # Para encontrar este xpath exato, primeiro abrimos o inspecionar elemento no navegador clicando em f12, depois localizamos o elemento alvo, identificamos um atributo chave presente (directions-searchbox). Apertamos Ctrl+F e digitamos o atributo chave presente para encontrar o xpath exato. A partir dai construimos todos o restante do caminho do xpath = //div[contains(@id, "directions-searchbox")]//input
+    xpath = '//div[contains(@id, "directions-searchbox")]//input'
 
 def abre_rotas():
     # XPATH de rotas
@@ -44,13 +65,20 @@ def fecha_rotas():
     # botao_fechar_rotas.click()
 
 if __name__ == "__main__":
-    endereco = "Av. Alonso Y Alonso, 3071 - Prolongamento Jardim Paulista, Franca - SP, 14401-426" # SESC
-    adiciona_destino(endereco)
+    enderecos = [
+        "Av. Alonso Y Alonso, 3071 - Prolongamento Jardim Paulista, Franca - SP, 14401-426", # SESC
+        "R. Abílio Coutinho, 331 - São Joaquim, Franca - SP, 14406-355", # São Joaquim Hospital e Maternidade
+        "Av. Pres. Vargas, 105 - Cidade Nova, Franca - SP, 14401-110", # Padaria Estrela
+        "Av. Eufrásia Monteiro Petráglia, 900 - Prolongamento Jardim Dr. Antonio Petraglia, Franca - SP, 14409-160" # Unesp
+    ]
+    adiciona_destino(enderecos[0], 1)
     abre_rotas()
+    adiciona_destino(enderecos[0], 1)
+    adiciona_destino(enderecos[1], 2)
     fecha_rotas()
 
     # Mantém o navegador aberto por 10 minutos
     sleep(600)
-    
+
     # Fechar o navegador
     driver.quit()
