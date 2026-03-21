@@ -10,7 +10,7 @@ from time import sleep
 # Configuração do Selenium
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
-driver.implicitly_wait(3)
+driver.implicitly_wait(5)
 
 # Acessar o site
 driver.get("https://www.google.com/maps")
@@ -48,7 +48,7 @@ def abre_rotas():
     # XPATH de rotas
     xpath = "/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[4]/div[1]/button"
     # Esperar o carregamento do botão de rotas
-    wait = WebDriverWait(driver, timeout=2)
+    wait = WebDriverWait(driver, timeout=60)
     # Esperar até que o botão de rotas esteja presente na página
     botao_rotas = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
     # Clicar no botão de rotas
@@ -56,20 +56,74 @@ def abre_rotas():
 
 def adicionar_outros_destinos():
     xpath = '//span[text()="Adicionar destino"]'
-    wait = WebDriverWait(driver, timeout=2)
+    wait = WebDriverWait(driver, timeout=60)
     wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
     botao_adicionar_destino = driver.find_element(By.XPATH, xpath)
     botao_adicionar_destino.click()
 
-def fecha_rotas():
-    # XPATH de fechar rotas
-    xpath_fechar_rotas = '//button[@aria-label="Fechar rotas"]'
-    # Esperar o carregamento do botão de fechar rotas
-    wait = WebDriverWait(driver, timeout=2)
-    # Esperar até que o botão de fechar rotas esteja presente na página
-    botao_fechar_rotas = wait.until(EC.presence_of_element_located((By.XPATH, xpath_fechar_rotas)))
-    # NÃO Clicar no botão de fechar rotas
-    # botao_fechar_rotas.click()
+def seleciona_tipo_de_transporte(tipo_de_transporte="Motocicleta"):
+    xpath = f'//button[@data-tooltip="{tipo_de_transporte}"]'
+    wait = WebDriverWait(driver, timeout=60)
+    botao_transporte = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+    botao_transporte.click()
+
+def retorna_tempo_total():
+    # XPath agora aceita tanto 'min' quanto 'h' (horas)
+    xpath = '//div[@data-trip-index="0"]//div[contains(text(),"min") or contains(text(),"h")]'
+    wait = WebDriverWait(driver, timeout=60)
+    tempo_total = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+    texto = tempo_total.text.lower().strip() # Ex: "1 h 20 min" ou "45 min"
+    
+    total_minutos = 0
+    
+    # Se houver "h" na string, extraímos as horas e multiplicamos por 60
+    if "h" in texto:
+        partes = texto.split("h")
+        horas = int(partes[0].strip())
+        total_minutos += horas * 60
+        texto_restante = partes[1] # O que sobra depois do "h"
+    else:
+        texto_restante = texto
+        
+    # Se houver "min" no que restou (ou na string original), extraímos e somamos
+    if "min" in texto_restante:
+        minutos_str = texto_restante.replace("min", "").strip()
+        if minutos_str:
+            total_minutos += int(minutos_str)
+            
+    return int(total_minutos)
+
+def retorna_distancia_total():
+    xpath = '//div[@data-trip-index="0"]//div[contains(text(),"km")]'
+    wait = WebDriverWait(driver, timeout=60)
+    distancia_total = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+    # Limpeza robusta: remove " km", remove pontos de milhar e troca vírgula por ponto decimal
+    texto_limpo = distancia_total.text.replace(" km", "").replace(".", "").replace(",", ".")
+    return float(texto_limpo)
+
+##### FUNÇÕES PRINCIPAIS #####
+
+def gera_pares_distancias_e_tempos(enderecos):
+    distancias_em_pares = {}
+    tempos_em_pares = {}
+    driver.get("https://www.google.com/maps")
+    adiciona_destino(enderecos[0], 1)
+    abre_rotas()
+    seleciona_tipo_de_transporte("Motocicleta")
+
+    for i, end1 in enumerate(enderecos):
+        adiciona_destino(end1, 1)
+        sleep(1) # Estabiliza após trocar a origem
+        for j, end2 in enumerate(enderecos):
+            if i != j:
+                adiciona_destino(end2, 2)
+                sleep(2) # Pausa para o Maps calcular a nova rota
+                tempo_par = retorna_tempo_total()
+                tempos_em_pares[f'{i} -> {j}'] = tempo_par
+                distancia_par = retorna_distancia_total()
+                distancias_em_pares[f'{i} -> {j}'] = distancia_par
+
+    return distancias_em_pares, tempos_em_pares
 
 if __name__ == "__main__":
     enderecos = [
@@ -78,16 +132,10 @@ if __name__ == "__main__":
         "Av. Pres. Vargas, 105 - Cidade Nova, Franca - SP, 14401-110", # Padaria Estrela
         "Av. Eufrásia Monteiro Petráglia, 900 - Prolongamento Jardim Dr. Antonio Petraglia, Franca - SP, 14409-160" # Unesp
     ]
-    adiciona_destino(enderecos[0], 1)
-    abre_rotas()
-    adiciona_destino(enderecos[0], 1)
-    adiciona_destino(enderecos[1], 2)
-    adicionar_outros_destinos()
-    adiciona_destino(enderecos[2], 3)
-    adicionar_outros_destinos()
-    adiciona_destino(enderecos[3], 4)
 
-    fecha_rotas()
+    distancias_em_pares, tempos_em_pares = gera_pares_distancias_e_tempos(enderecos)
+    print(distancias_em_pares)
+    print(tempos_em_pares)
 
     # Mantém o navegador aberto por 10 minutos
     sleep(600)
