@@ -54,6 +54,13 @@ def abre_rotas():
     # Clicar no botão de rotas
     botao_rotas.click()
 
+def adicionar_outros_destinos():
+    xpath = '//span[text()="Adicionar destino"]'
+    wait = WebDriverWait(driver, timeout=2)
+    wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
+    botao_adicionar_destino = driver.find_element(By.XPATH, xpath)
+    botao_adicionar_destino.click()
+
 def fecha_rotas():
     # XPATH de fechar rotas
     xpath_fechar_rotas = '//button[@aria-label="Fechar rotas"]'
@@ -75,6 +82,11 @@ if __name__ == "__main__":
     abre_rotas()
     adiciona_destino(enderecos[0], 1)
     adiciona_destino(enderecos[1], 2)
+    adicionar_outros_destinos()
+    adiciona_destino(enderecos[2], 3)
+    adicionar_outros_destinos()
+    adiciona_destino(enderecos[3], 4)
+
     fecha_rotas()
 
     # Mantém o navegador aberto por 10 minutos
