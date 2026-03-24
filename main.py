@@ -6,6 +6,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from time import sleep
+import pulp
+import itertools
 
 # Configuração do Selenium
 service = Service(ChromeDriverManager().install())
@@ -125,6 +127,50 @@ def gera_pares_distancias_e_tempos(enderecos):
 
     return distancias_em_pares, tempos_em_pares
 
+def gera_otimizacao(enderecos, distancias_em_pares, tempos_em_pares):
+    
+    def distancia(end0, end1):
+        return distancias_em_pares[f'{end0} -> {end1}']
+    
+    # Vamos criar o problema de otimizacao para encontrar a melhor rota
+    prob = pulp.LpProblem("TSP", pulp.LpMinimize)
+    print(prob)
+    # Vamos criar as variaveis de decisao para cada par de enderecos
+    x = pulp.LpVariable.dicts("x", [(i,j) for i in range(len(enderecos)) for j in range(len(enderecos)) if i != j], cat="Binary")
+    print(x)
+    prob += pulp.lpSum([distancia(i, j) * x[(i, j)] for i in range(len(enderecos)) for j in range(len(enderecos)) if i != j])
+    print(prob)
+    # Vamos adicionar as restricoes para que cada endereco seja visitado apenas uma vez
+    for i in range(len(enderecos)):
+        prob += pulp.lpSum([x[(i, j)] for j in range(len(enderecos)) if i != j]) == 1
+        prob += pulp.lpSum([x[(j, i)] for j in range(len(enderecos)) if i != j]) == 1
+    
+    for k in range(len(enderecos)):
+        for S in range(2, len(enderecos)):
+            for subset in itertools.combinations([i for i in range(len(enderecos)) if i != k], S):
+                prob += pulp.lpSum([x[(i, j)] for i in subset for j in subset if i != j]) <= len(subset) - 1
+
+    prob.solve(pulp.PULP_CBC_CMD())
+        
+    solucao = []
+    endereco_inicial = 0
+    proximo_endereco = endereco_inicial
+    while True:
+        for j in range(len(enderecos)):
+            if j != proximo_endereco and x[(proximo_endereco, j)].value() == 1:
+                solucao.append((proximo_endereco, j))
+                proximo_endereco = j
+                break
+        if proximo_endereco == endereco_inicial:
+            break
+    
+    print('Rota: ')
+    for i in range(len(solucao)):
+        print(solucao[i][0], ' -> ', solucao[i][1])
+    
+    return solucao
+    
+
 if __name__ == "__main__":
     enderecos = [
         "Av. Alonso Y Alonso, 3071 - Prolongamento Jardim Paulista, Franca - SP, 14401-426", # SESC
@@ -136,6 +182,7 @@ if __name__ == "__main__":
     distancias_em_pares, tempos_em_pares = gera_pares_distancias_e_tempos(enderecos)
     print(distancias_em_pares)
     print(tempos_em_pares)
+    gera_otimizacao(enderecos, distancias_em_pares, tempos_em_pares)
 
     # Mantém o navegador aberto por 10 minutos
     sleep(600)
