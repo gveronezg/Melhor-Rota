@@ -169,7 +169,16 @@ def gera_otimizacao(enderecos, distancias_em_pares, tempos_em_pares):
         print(solucao[i][0], ' -> ', solucao[i][1])
     
     return solucao
-    
+   
+def mostra_rota_otimizada(enderecos, solucao):
+    driver.get("https://www.google.com/maps")
+    adiciona_destino(enderecos[0], 1)
+    abre_rotas()
+    seleciona_tipo_de_transporte("Motocicleta")
+    for i in range(len(solucao)):
+        adiciona_destino(enderecos[solucao[i][0]], i+1)
+        adicionar_outros_destinos()
+    adiciona_destino(enderecos[0], len(enderecos)+1)
 
 if __name__ == "__main__":
     enderecos = [
@@ -180,9 +189,10 @@ if __name__ == "__main__":
     ]
 
     distancias_em_pares, tempos_em_pares = gera_pares_distancias_e_tempos(enderecos)
-    print(distancias_em_pares)
-    print(tempos_em_pares)
-    gera_otimizacao(enderecos, distancias_em_pares, tempos_em_pares)
+    #print(distancias_em_pares)
+    #print(tempos_em_pares)
+    solucao = gera_otimizacao(enderecos, distancias_em_pares, tempos_em_pares)
+    mostra_rota_otimizada(enderecos, solucao)
 
     # Mantém o navegador aberto por 10 minutos
     sleep(600)
