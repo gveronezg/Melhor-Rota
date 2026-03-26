@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
 from time import sleep
 import pulp
 import itertools
@@ -43,12 +44,23 @@ def adiciona_destino(endereco, numero_caixas=1):
         else:
             print(f"Não foi possível adicionar o endereço {len(caixas)} | {numero_caixas}")
 
+    # Verificando se existe o botão a ser clicado antes de prosseguir
+    try:
+        xpath = '//button[@class="C9cOMe"]'
+        # esperar 5 segundos para o botão aparecer
+        wait = WebDriverWait(driver, 5)
+        botao_adicionar_destino = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+        if botao_adicionar_destino:
+            botao_adicionar_destino.click()
+    except TimeoutException:
+        pass
+
     # Para encontrar este xpath exato, primeiro abrimos o inspecionar elemento no navegador clicando em f12, depois localizamos o elemento alvo, identificamos um atributo chave presente (directions-searchbox). Apertamos Ctrl+F e digitamos o atributo chave presente para encontrar o xpath exato. A partir dai construimos todos o restante do caminho do xpath = //div[contains(@id, "directions-searchbox")]//input
     xpath = '//div[contains(@id, "directions-searchbox")]//input'
 
 def abre_rotas():
     # XPATH de rotas
-    xpath = "/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[2]/div/div[1]/div/div/div[4]/div[1]/button"
+    xpath = "//button[@aria-label='Rotas']"
     # Esperar o carregamento do botão de rotas
     wait = WebDriverWait(driver, timeout=60)
     # Esperar até que o botão de rotas esteja presente na página
@@ -108,7 +120,7 @@ def retorna_distancia_total():
 def gera_pares_distancias_e_tempos(enderecos):
     distancias_em_pares = {}
     tempos_em_pares = {}
-    driver.get("https://www.google.com/maps")
+    # driver.get("https://www.google.com/maps") # já estava nesta pagina
     adiciona_destino(enderecos[0], 1)
     abre_rotas()
     seleciona_tipo_de_transporte("Motocicleta")
@@ -182,6 +194,7 @@ def mostra_rota_otimizada(enderecos, solucao):
 
 if __name__ == "__main__":
     enderecos = [
+        "R. Frankilim José Peres, 610 - Vila Exposicao, Franca - SP, 14405-451", # Casa
         "Av. Alonso Y Alonso, 3071 - Prolongamento Jardim Paulista, Franca - SP, 14401-426", # SESC
         "R. Abílio Coutinho, 331 - São Joaquim, Franca - SP, 14406-355", # São Joaquim Hospital e Maternidade
         "Av. Pres. Vargas, 105 - Cidade Nova, Franca - SP, 14401-110", # Padaria Estrela
